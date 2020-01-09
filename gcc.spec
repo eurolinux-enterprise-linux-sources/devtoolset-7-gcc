@@ -1,13 +1,13 @@
 %{?scl:%global __strip %%{_scl_root}/usr/bin/strip}
 %{?scl:%global __objdump %%{_scl_root}/usr/bin/objdump}
 %{?scl:%scl_package gcc}
-%global DATE 20170526
-%global SVNREV 248505
-%global gcc_version 7.1.1
+%global DATE 20180303
+%global SVNREV 258210
+%global gcc_version 7.3.1
 %global gcc_major 7
 # Note, gcc_release must be integer, if you want to add suffixes to
-# %{release}, append them after %{gcc_release} on Release: line.
-%global gcc_release 2
+# %%{release}, append them after %%{gcc_release} on Release: line.
+%global gcc_release 5
 %global mpc_version 0.8.1
 %global isl_version 0.16.1
 %global graphviz_version 2.26.0
@@ -46,7 +46,11 @@
 %global build_libubsan 0
 %endif
 %ifarch %{ix86} x86_64
+%if 0%{?rhel} > 7
+%global build_libcilkrts 0
+%else
 %global build_libcilkrts 1
+%endif
 %else
 %global build_libcilkrts 0
 %endif
@@ -61,12 +65,21 @@
 %global attr_ifunc 0
 %endif
 %ifarch %{ix86} x86_64
+%if 0%{?rhel} > 7
+%global build_libmpx 0
+%else
 %global build_libmpx 1
+%endif
 %else
 %global build_libmpx 0
 %endif
 %global build_isl 1
+%if 0%{?rhel} > 7
+# The buildroots aren't ready yet.
+%global build_libstdcxx_docs 0
+%else
 %global build_libstdcxx_docs 1
+%endif
 %ifarch s390x
 %global multilib_32_arch s390
 %endif
@@ -81,19 +94,18 @@
 %endif
 Summary: GCC version 7
 Name: %{?scl_prefix}gcc
-#Name: %{?scl_prefix}gcc%{!?scl:7}
 Version: %{gcc_version}
-Release: %{gcc_release}%{?dist}
-# libgcc, libgfortran, libmudflap, libgomp, libstdc++ and crtstuff have
+Release: %{gcc_release}.10%{?dist}
+# libgcc, libgfortran, libgomp, libstdc++ and crtstuff have
 # GCC Runtime Exception.
 License: GPLv3+ and GPLv3+ with exceptions and GPLv2+ with exceptions and LGPLv2+ and BSD
 Group: Development/Languages
 # The source for this package was pulled from upstream's vcs.  Use the
 # following commands to generate the tarball:
-# svn export svn://gcc.gnu.org/svn/gcc/branches/redhat/gcc-7-branch@%{SVNREV} gcc-%{version}-%{DATE}
-# tar cf - gcc-%{version}-%{DATE} | bzip2 -9 > gcc-%{version}-%{DATE}.tar.bz2
+# svn export svn://gcc.gnu.org/svn/gcc/branches/redhat/gcc-7-branch@%%{SVNREV} gcc-%%{version}-%%{DATE}
+# tar cf - gcc-%%{version}-%%{DATE} | bzip2 -9 > gcc-%%{version}-%%{DATE}.tar.bz2
 Source0: gcc-%{version}-%{DATE}.tar.bz2
-Source1: ftp://gcc.gnu.org/pub/gcc/infrastructure/isl-%{isl_version}.tar.xz
+Source1: ftp://gcc.gnu.org/pub/gcc/infrastructure/isl-%{isl_version}.tar.bz2
 Source2: http://www.multiprecision.org/mpc/download/mpc-%{mpc_version}.tar.gz
 Source3: ftp://ftp.stack.nl/pub/users/dimitri/doxygen-%{doxygen_version}.src.tar.gz
 URL: http://gcc.gnu.org
@@ -105,7 +117,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 # Need binutils which support --hash-style=gnu >= 2.17.50.0.2-7
 # Need binutils which support mffgpr and mftgpr >= 2.17.50.0.2-8
 # Need binutils which support --build-id >= 2.17.50.0.17-3
-# Need binutils which support %gnu_unique_object >= 2.19.51.0.14
+# Need binutils which support %%gnu_unique_object >= 2.19.51.0.14
 # Need binutils which support .cfi_sections >= 2.19.51.0.14-33
 BuildRequires: binutils >= 2.19.51.0.14-33
 # While gcc doesn't include statically linked binaries, during testing
@@ -114,7 +126,7 @@ BuildRequires: glibc-static
 %if 0%{?scl:1}
 BuildRequires: %{?scl_prefix}binutils >= 2.22.52.0.1
 # For testing
-#BuildRequires: %{?scl_prefix}gdb >= 7.4.50
+BuildRequires: %{?scl_prefix}gdb >= 7.4.50
 %endif
 BuildRequires: zlib-devel, gettext, dejagnu, bison, flex, texinfo, sharutils, gcc-gfortran
 BuildRequires: /usr/bin/pod2man
@@ -151,10 +163,14 @@ BuildRequires: libunwind >= 0.98
 # Need binutils that supports --hash-style=gnu
 # Need binutils that support mffgpr/mftgpr
 # Need binutils which support --build-id >= 2.17.50.0.17-3
-# Need binutils which support %gnu_unique_object >= 2.19.51.0.14
+# Need binutils which support %%gnu_unique_object >= 2.19.51.0.14
 # Need binutils which support .cfi_sections >= 2.19.51.0.14-33
 %if 0%{?scl:1}
+%if 0%{?rhel} <= 7
 Requires: %{?scl_prefix}binutils >= 2.22.52.0.1
+%else
+Requires: binutils >= 2.19.51.0.14-33
+%endif
 %else
 Requires: binutils >= 2.19.51.0.14-33
 %endif
@@ -187,10 +203,9 @@ BuildRequires: dblatex, texlive-collection-latex, docbook5-style-xsl
 %endif
 %endif
 %{?scl:Requires:%scl_runtime}
-%{?scl:Provides:gcc = %{version}-%{release}}
 AutoReq: true
 AutoProv: false
-%ifarch sparc64 ppc64 ppc64le s390x x86_64 ia64
+%ifarch sparc64 ppc64 ppc64le s390x x86_64 ia64 aarch64
 Provides: liblto_plugin.so.0()(64bit)
 %else
 Provides: liblto_plugin.so.0
@@ -230,7 +245,6 @@ Provides: liblto_plugin.so.0
 %endif
 
 Patch0: gcc7-hack.patch
-Patch1: gcc7-ppc32-retaddr.patch
 Patch2: gcc7-i386-libgomp.patch
 Patch3: gcc7-sparc-config-detection.patch
 Patch4: gcc7-libgomp-omp_h-multilib.patch
@@ -241,17 +255,47 @@ Patch8: gcc7-no-add-needed.patch
 Patch9: gcc7-aarch64-async-unw-tables.patch
 Patch10: gcc7-foffload-default.patch
 Patch11: gcc7-Wno-format-security.patch
-Patch12: gcc7-pr80725.patch
+Patch13: gcc7-rh1512529-aarch64.patch
+Patch14: gcc7-pr84524.patch
+Patch15: gcc7-pr84128.patch
+Patch16: gcc7-rh1570967.patch
 
 Patch1000: gcc7-libstdc++-compat.patch
 Patch1001: gcc7-alt-compat-test.patch
 Patch1002: gcc7-libstdc++44-xfail.patch
 Patch1003: gcc7-rh1118870.patch
 Patch1004: gcc7-isl-dl2.patch
+Patch1005: gcc7-s390x-libsanitizer.patch
 
 Patch2001: doxygen-1.7.1-config.patch
 Patch2002: doxygen-1.7.5-timestamp.patch
 Patch2003: doxygen-1.8.0-rh856725.patch
+
+Patch3000: 0000-infrastructure.patch
+Patch3001: 0001-Allow-repeated-compatible-type-specifications.patch
+Patch3002: 0002-Pad-character-to-int-conversions-with-spaces-instead.patch
+Patch3003: 0003-Add-std-extra-legacy.patch
+Patch3004: 0004-Allow-conversion-between-Hollerith-constants-and-CHA.patch
+Patch3005: 0005-Allow-comparisons-between-INTEGER-and-REAL.patch
+Patch3006: 0006-Allow-blank-format-items-in-format-strings.patch
+Patch3007: 0007-Allow-more-than-one-character-as-argument-to-ICHAR.patch
+Patch3008: 0008-Allow-non-integer-substring-indexes.patch
+Patch3009: 0009-Convert-LOGICAL-to-INTEGER-for-arithmetic-ops-and-vi.patch
+Patch3010: 0010-Allow-mixed-string-length-and-array-specification-in.patch
+Patch3011: 0011-Allow-character-to-int-conversions-in-DATA-statement.patch
+Patch3012: 0012-Allow-old-style-initializers-in-derived-types.patch
+Patch3013: 0013-Allow-per-variable-kind-specification.patch
+Patch3014: 0014-Allow-non-logical-expressions-in-IF-statements.patch
+Patch3016: 0016-Allow-calls-to-intrinsics-with-smaller-types-than-sp.patch
+Patch3017: 0017-Add-the-SEQUENCE-attribute-by-default-if-it-s-not-pr.patch
+Patch3018: 0018-Fill-in-missing-array-dimensions-using-the-lower-bou.patch
+Patch3019: 0019-Add-tests-for-AUTOMATIC-keyword.patch
+Patch3020: 0020-Add-test-for-STRUCTURE-and-RECORD.patch
+Patch3022: 0022-Default-values-for-certain-field-descriptors-in-form.patch
+Patch3023: gcc7-fortranlines.patch
+Patch3024: gcc7-fortran-include.patch
+
+
 
 %if 0%{?rhel} >= 7
 %global nonsharedver 48
@@ -277,6 +321,15 @@ Patch2003: doxygen-1.8.0-rh856725.patch
 %description
 The %{?scl_prefix}gcc%{!?scl:5} package contains the GNU Compiler Collection version 7.
 
+%package -n libgcc
+Summary: GCC version 7 shared support library
+Group: System Environment/Libraries
+Autoreq: false
+
+%description -n libgcc
+This package contains GCC shared support library which is needed
+e.g. for exception handling support.
+
 %package c++
 Summary: C++ support for GCC version 7
 Group: Development/Languages
@@ -294,6 +347,16 @@ Autoprov: true
 This package adds C++ support to the GNU Compiler Collection
 version 7.  It includes support for most of the current C++ specification
 and a lot of support for the upcoming C++ specification.
+
+%package -n libstdc++
+Summary: GNU Standard C++ Library
+Group: System Environment/Libraries
+Autoreq: true
+Requires: glibc >= 2.10.90-7
+
+%description -n libstdc++
+The libstdc++ package contains a rewritten standard compliant GCC Standard
+C++ Library.
 
 %package -n %{?scl_prefix}libstdc++%{!?scl:5}-devel
 Summary: Header files and libraries for C++ development
@@ -325,7 +388,11 @@ for the GNU standard C++ library.
 Summary: Fortran support for GCC 7
 Group: Development/Languages
 Requires: %{?scl_prefix}gcc%{!?scl:5} = %{version}-%{release}
+%if 0%{?rhel} > 7
+Requires: libgfortran >= 7.2.1-1
+%else
 Requires: libgfortran4 >= 7.1.1-2
+%endif
 %if %{build_libquadmath}
 %if 0%{!?scl:1}
 Requires: libquadmath
@@ -338,6 +405,28 @@ Autoprov: true
 %description gfortran
 The %{?scl_prefix}gcc%{!?scl:5}-gfortran package provides support for compiling Fortran
 programs with the GNU Compiler Collection.
+
+%package -n libgfortran
+Summary: Fortran runtime
+Group: System Environment/Libraries
+Autoreq: true
+%if %{build_libquadmath}
+Requires: libquadmath = %{version}-%{release}
+%endif
+
+%description -n libgfortran
+This package contains Fortran shared library which is needed to run
+Fortran dynamically linked programs.
+
+%package -n libgomp
+Summary: GCC OpenMP v3.0 shared support library
+Group: System Environment/Libraries
+Requires(post): /sbin/install-info
+Requires(preun): /sbin/install-info
+
+%description -n libgomp
+This package contains GCC shared support library which is needed
+for OpenMP v3.0 support.
 
 %package gdb-plugin
 Summary: GCC 7 plugin for GDB
@@ -374,13 +463,13 @@ Requires(preun): /sbin/install-info
 %description -n %{?scl_prefix}libgccjit-docs
 This package contains documentation for GCC 7 JIT front end.
 
-%package -n %{?scl_prefix}libquadmath
+%package -n libquadmath
 Summary: GCC 7 __float128 shared support library
 Group: System Environment/Libraries
 Requires(post): /sbin/install-info
 Requires(preun): /sbin/install-info
 
-%description -n %{?scl_prefix}libquadmath
+%description -n libquadmath
 This package contains GCC shared support library which is needed
 for __float128 math support and for Fortran REAL*16 support.
 
@@ -399,6 +488,16 @@ Requires: %{?scl_prefix}gcc%{!?scl:5} = %{version}-%{release}
 %description -n %{?scl_prefix}libquadmath-devel
 This package contains headers for building Fortran programs using
 REAL*16 and programs using __float128 math.
+
+%package -n libitm
+Summary: The GNU Transactional Memory library
+Group: System Environment/Libraries
+Requires(post): /sbin/install-info
+Requires(preun): /sbin/install-info
+
+%description -n libitm
+This package contains the GNU Transactional Memory library
+which is a GCC transactional memory support runtime library.
 
 %package -n %{?scl_prefix}libitm-devel
 Summary: The GNU Transactional Memory support
@@ -444,6 +543,16 @@ Requires: libatomic >= 4.8.0
 %description -n %{?scl_prefix}libatomic-devel
 This package contains GNU Atomic static libraries.
 
+%package -n libasan
+Summary: The Address Sanitizer runtime library from GCC 7
+Group: System Environment/Libraries
+Requires(post): /sbin/install-info
+Requires(preun): /sbin/install-info
+
+%description -n libasan
+This package contains the Address Sanitizer library from GCC 7
+which is used for -fsanitize=address instrumented programs.
+
 %package -n libasan4
 Summary: The Address Sanitizer runtime library from GCC 7
 Group: System Environment/Libraries
@@ -457,7 +566,11 @@ which is used for -fsanitize=address instrumented programs.
 %package -n %{?scl_prefix}libasan-devel
 Summary: The Address Sanitizer static library
 Group: Development/Libraries
+%if 0%{?rhel} > 7
+Requires: libasan >= 7.1.1
+%else
 Requires: libasan4 >= 7.1.1
+%endif
 
 %description -n %{?scl_prefix}libasan-devel
 This package contains Address Sanitizer static runtime library.
@@ -558,7 +671,6 @@ This package contains the Memory Protection Extensions static runtime libraries.
 %setup -q -n gcc-%{version}-%{DATE} -a 1 -a 2 -a 3
 %endif
 %patch0 -p0 -b .hack~
-%patch1 -p0 -b .ppc32-retaddr~
 %patch2 -p0 -b .i386-libgomp~
 %patch3 -p0 -b .sparc-config-detection~
 %patch4 -p0 -b .libgomp-omp_h-multilib~
@@ -573,9 +685,14 @@ This package contains the Memory Protection Extensions static runtime libraries.
 %patch9 -p0 -b .aarch64-async-unw-tables~
 %patch10 -p0 -b .foffload-default~
 %patch11 -p0 -b .Wno-format-security~
-%patch12 -p0 -b .pr80725~
+%patch13 -p0 -b .rh1512529-aarch64~
+%patch14 -p0 -b .pr84524~
+%patch15 -p0 -b .pr84128~
+%patch16 -p0 -b .rh1570967~
 
+%if 0%{?rhel} <= 7
 %patch1000 -p0 -b .libstdc++-compat~
+%endif
 %ifarch %{ix86} x86_64
 %if 0%{?rhel} < 7
 # On i?86/x86_64 there are some incompatibilities in _Decimal* as well as
@@ -585,10 +702,15 @@ This package contains the Memory Protection Extensions static runtime libraries.
 %endif
 %if 0%{?rhel} == 6
 # Fix this up
-#%patch1002 -p0 -b .libstdc++44-xfail~
+#%%patch1002 -p0 -b .libstdc++44-xfail~
 %endif
 %patch1003 -p0 -b .rh1118870~
+%if %{build_isl}
 %patch1004 -p0 -b .isl-dl2~
+%endif
+%if 0%{?rhel} == 6
+%patch1005 -p0 -b .s390x-libsanitizer~
+%endif
 
 %if %{build_libstdcxx_docs}
 %if 0%{?rhel} < 7
@@ -598,6 +720,32 @@ cd doxygen-%{doxygen_version}
 %patch2003 -p1 -b .rh856725~
 cd ..
 %endif
+%endif
+
+%if 0%{?rhel} <= 7
+%patch3000 -p1 -b .fortran00~
+%patch3003 -p1 -b .fortran03~
+%patch3001 -p1 -b .fortran01~
+%patch3002 -p1 -b .fortran02~
+%patch3004 -p1 -b .fortran04~
+%patch3005 -p1 -b .fortran05~
+%patch3006 -p1 -b .fortran06~
+%patch3007 -p1 -b .fortran07~
+%patch3008 -p1 -b .fortran08~
+%patch3009 -p1 -b .fortran09~
+%patch3010 -p1 -b .fortran10~
+%patch3011 -p1 -b .fortran11~
+%patch3012 -p1 -b .fortran12~
+%patch3013 -p1 -b .fortran13~
+%patch3014 -p1 -b .fortran14~
+%patch3016 -p1 -b .fortran16~
+%patch3017 -p1 -b .fortran17~
+%patch3018 -p1 -b .fortran18~
+%patch3019 -p1 -b .fortran19~
+%patch3020 -p1 -b .fortran20~
+%patch3022 -p1 -b .fortran22~
+%patch3023 -p1 -b .fortran23~
+%patch3024 -p1 -b .fortran24~
 %endif
 
 echo 'Red Hat %{version}-%{gcc_release}' > gcc/DEV-PHASE
@@ -731,7 +879,7 @@ CONFIGURE_OPTS="\
 %endif
 %endif
 %endif
-%if 0%{rhel} < 8
+%if 0%{?rhel} <= 7
 	--with-default-libstdcxx-abi=gcc4-compatible \
 %endif
 %if %{build_isl}
@@ -749,7 +897,7 @@ CONFIGURE_OPTS="\
 %endif
 %if 0%{?rhel} >= 7
 %if %{attr_ifunc}
-        --enable-gnu-indirect-function \
+	--enable-gnu-indirect-function \
 %endif
 %endif
 %ifarch %{arm}
@@ -820,6 +968,7 @@ GCJFLAGS="$OPT_FLAGS" make %{?_smp_mflags} BOOT_CFLAGS="$OPT_FLAGS" bootstrap
 GCJFLAGS="$OPT_FLAGS" make %{?_smp_mflags} BOOT_CFLAGS="$OPT_FLAGS" profiledbootstrap
 %endif
 
+%if 0%{?rhel} <= 7
 echo '/* GNU ld script
    Use the shared library, but some functions are only in
    the static library, so try that secondarily.  */
@@ -831,6 +980,7 @@ INPUT ( %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/%{_lib}/libstdc++.so.6 -lstdc
 sed -i -e '/^postdeps/s/-lstdc++/-lstdc++_system/' libcc1/libtool
 rm -f libcc1/libcc1.la
 make -C libcc1 libcc1.la
+%endif
 
 CC="`%{gcc_target_platform}/libstdc++-v3/scripts/testsuite_flags --build-cc`"
 CXX="`%{gcc_target_platform}/libstdc++-v3/scripts/testsuite_flags --build-cxx` `%{gcc_target_platform}/libstdc++-v3/scripts/testsuite_flags --build-includes`"
@@ -908,6 +1058,9 @@ done)
 
 rm -f rpm.doc/changelogs/gcc/ChangeLog.[1-9]
 find rpm.doc -name \*ChangeLog\* | xargs bzip2 -9
+
+# Test the nonshared bits.
+%if 0%{?rhel} <= 7
 mkdir libstdc++_compat_test
 cd libstdc++_compat_test
 readelf -Ws %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/%{_lib}/libstdc++.so.6 | sed -n '/\.symtab/,$d;/ UND /d;/@GLIBC_PRIVATE/d;/\(GLOBAL\|WEAK\|UNIQUE\)/p' | awk '{ if ($4 == "OBJECT") { printf "%s %s %s %s %s\n", $8, $4, $5, $6, $3 } else { printf "%s %s %s %s\n", $8, $4, $5, $6 }}' | sed 's/ UNIQUE / GLOBAL /;s/ WEAK / GLOBAL /;s/@@GLIBCXX_[0-9.]*//;s/@@CXXABI_TM_[0-9.]*//;s/@@CXXABI_FLOAT128//;s/@@CXXABI_[0-9.]*//' | LC_ALL=C sort -u > system.abilist
@@ -922,6 +1075,7 @@ diff -up system2vanilla.abilist.diff nonshared.abilist || :
 echo ====================NONSHARED END=====================
 rm -f libstdc++_nonshared.so
 cd ..
+%endif
 
 %install
 rm -fr %{buildroot}
@@ -975,6 +1129,7 @@ ln -sf ../../../../bin/ld $FULLEPATH/ld
 ln -sf ../../../../bin/ld.bfd $FULLEPATH/ld.bfd
 ln -sf ../../../../bin/ld.gold $FULLEPATH/ld.gold
 ln -sf ../../../../bin/nm $FULLEPATH/nm
+ln -sf ../../../../bin/objcopy $FULLEPATH/objcopy
 ln -sf ../../../../bin/ranlib $FULLEPATH/ranlib
 ln -sf ../../../../bin/strip $FULLEPATH/strip
 %endif
@@ -1026,9 +1181,11 @@ for f in `find %{buildroot}%{_prefix}/include/c++/%{gcc_major}/%{gcc_target_plat
 &\
 #endif/' $f
   done
+%if 0%{?rhel} <= 7
   # Force the old ABI unconditionally, the new one does not work in the
   # libstdc++_nonshared.a model against RHEL 6/7 libstdc++.so.6.
   sed -i -e 's/\(define[[:blank:]]*_GLIBCXX_USE_DUAL_ABI[[:blank:]]*\)1/\10/' $f
+%endif
 done
 
 # Nuke bits/*.h.gch dirs
@@ -1127,8 +1284,10 @@ GROUP ( /lib/libgcc_s.so.1 libgcc.a )' > $FULLPATH/32/libgcc_s.so
 %endif
 
 mv -f %{buildroot}%{_prefix}/%{_lib}/libgomp.spec $FULLPATH/
+%if 0%{?rhel} <= 7
 cp -a %{gcc_target_platform}/libstdc++-v3/src/.libs/libstdc++_nonshared%{nonsharedver}.a \
   $FULLLPATH/libstdc++_nonshared.a
+%endif
 
 rm -f $FULLEPATH/libgccjit.so
 mkdir -p %{buildroot}%{_prefix}/%{_lib}/
@@ -1141,15 +1300,32 @@ cp -a ../gcc/jit/libgccjit*.h $FULLPATH/include/
 /usr/bin/install -c -m 644 objlibgccjit/gcc/doc/libgccjit.info %{buildroot}/%{_infodir}/
 gzip -9 %{buildroot}/%{_infodir}/libgccjit.info
 
+%if 0%{?rhel} > 7
+mkdir -p %{buildroot}%{_datadir}/gdb/auto-load/%{_prefix}/%{_lib}
+mv -f %{buildroot}%{_prefix}/%{_lib}/libstdc++*gdb.py* \
+      %{buildroot}%{_datadir}/gdb/auto-load/%{_prefix}/%{_lib}/
+pushd ../libstdc++-v3/python
+for i in `find . -name \*.py`; do
+  touch -r $i %{buildroot}%{_prefix}/share/gcc-%{gcc_major}/python/$i
+done
+touch -r hook.in %{buildroot}%{_datadir}/gdb/auto-load/%{_prefix}/%{_lib}/libstdc++*gdb.py
+popd
+%endif
+
 pushd $FULLPATH
 echo '/* GNU ld script */
 %{oformat}
 INPUT ( %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/%{_lib}/libgomp.so.1 )' > libgomp.so
+%if 0%{?rhel} <= 7
 echo '/* GNU ld script
    Use the shared library, but some functions are only in
    the static library, so try that secondarily.  */
 %{oformat}
 INPUT ( %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/%{_lib}/libstdc++.so.6 -lstdc++_nonshared )' > libstdc++.so
+%else
+echo '%{oformat}
+INPUT ( %{_root_prefix}/%{_lib}/libstdc++.so.6 )' > libstdc++.so
+%endif
 %if %{build_fortran}
 rm -f libgfortran.so
 echo '/* GNU ld script
@@ -1195,7 +1371,6 @@ rm -f libtsan.so
 echo '/* GNU ld script */
 %{oformat}
 INPUT ( %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/%{_lib}/libtsan.so.0 )' > libtsan.so
-mv ../../../../%{_lib}/libtsan_preinit.o libtsan_preinit.o
 %endif
 %if %{build_libubsan}
 rm -f libubsan.so
@@ -1246,13 +1421,14 @@ mv -f %{buildroot}%{_prefix}/%{_lib}/libasan.*a $FULLLPATH/
 mv -f %{buildroot}%{_prefix}/%{_lib}/libasan_preinit.o $FULLLPATH/
 %endif
 %if %{build_libtsan}
-mv -f %{buildroot}%{_prefix}/%{_lib}/libtsan.*a $FULLLPATH/
+mv -f %{buildroot}%{_prefix}/%{_lib}/libtsan.*a $FULLPATH/
+mv -f %{buildroot}%{_prefix}/%{_lib}/libtsan_preinit.o $FULLPATH/
 %endif
 %if %{build_libubsan}
 mv -f %{buildroot}%{_prefix}/%{_lib}/libubsan.*a $FULLLPATH/
 %endif
 %if %{build_liblsan}
-mv -f %{buildroot}%{_prefix}/%{_lib}/liblsan.*a $FULLLPATH/
+mv -f %{buildroot}%{_prefix}/%{_lib}/liblsan.*a $FULLPATH/
 %endif
 %if %{build_libcilkrts}
 mv -f %{buildroot}%{_prefix}/%{_lib}/libcilkrts.*a $FULLLPATH/
@@ -1263,11 +1439,19 @@ mv -f %{buildroot}%{_prefix}/%{_lib}/libmpxwrappers.*a $FULLLPATH/
 %endif
 
 %ifarch sparcv9 ppc
+%if 0%{?rhel} <= 7
 echo '/* GNU ld script
    Use the shared library, but some functions are only in
    the static library, so try that secondarily.  */
 %{oformat2}
 INPUT ( %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/lib64/libstdc++.so.6 -lstdc++_nonshared )' > 64/libstdc++.so
+%else
+echo '/* GNU ld script
+   Use the shared library, but some functions are only in
+   the static library, so try that secondarily.  */
+%{oformat2}
+INPUT ( %{_root_prefix}/lib64/libstdc++.so.6 )' > 64/libstdc++.so
+%endif
 %if %{build_fortran}
 rm -f 64/libgfortran.so
 echo '/* GNU ld script
@@ -1385,11 +1569,19 @@ ln -sf ../lib64/libmpxwrappers.a 64/libmpxwrappers.a
 %endif
 %ifarch %{multilib_64_archs}
 mkdir -p 32
+%if 0%{?rhel} <= 7
 echo '/* GNU ld script
    Use the shared library, but some functions are only in
    the static library, so try that secondarily.  */
 %{oformat2}
 INPUT ( %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/lib/libstdc++.so.6 -lstdc++_nonshared )' > 32/libstdc++.so
+%else
+echo '/* GNU ld script
+   Use the shared library, but some functions are only in
+   the static library, so try that secondarily.  */
+%{oformat2}
+INPUT ( %{_root_prefix}/lib/libstdc++.so.6 )' > 32/libstdc++.so
+%endif
 %if %{build_fortran}
 rm -f 32/libgfortran.so
 echo '/* GNU ld script
@@ -1472,8 +1664,10 @@ ln -sf ../lib32/libstdc++.a 32/libstdc++.a
 ln -sf lib64/libstdc++.a libstdc++.a
 ln -sf ../lib32/libstdc++fs.a 32/libstdc++fs.a
 ln -sf lib64/libstdc++fs.a libstdc++fs.a
+%if 0%{?rhel} <= 7
 ln -sf ../lib32/libstdc++_nonshared.a 32/libstdc++_nonshared.a
 ln -sf lib64/libstdc++_nonshared.a libstdc++_nonshared.a
+%endif
 %if %{build_libquadmath}
 ln -sf ../lib32/libquadmath.a 32/libquadmath.a
 ln -sf lib64/libquadmath.a libquadmath.a
@@ -1510,7 +1704,9 @@ ln -sf lib64/libmpxwrappers.a libmpxwrappers.a
 %ifarch %{multilib_64_archs}
 ln -sf ../../../%{multilib_32_arch}-%{_vendor}-%{_target_os}%{?_gnu}/%{gcc_major}/libstdc++.a 32/libstdc++.a
 ln -sf ../../../%{multilib_32_arch}-%{_vendor}-%{_target_os}%{?_gnu}/%{gcc_major}/libstdc++fs.a 32/libstdc++fs.a
+%if 0%{?rhel} <= 7
 ln -sf ../../../%{multilib_32_arch}-%{_vendor}-%{_target_os}%{?_gnu}/%{gcc_major}/libstdc++_nonshared.a 32/libstdc++_nonshared.a
+%endif
 %if %{build_libquadmath}
 ln -sf ../../../%{multilib_32_arch}-%{_vendor}-%{_target_os}%{?_gnu}/%{gcc_major}/libquadmath.a 32/libquadmath.a
 %endif
@@ -1553,7 +1749,10 @@ for f in `find $adirs -maxdepth 1 -a \
 		    -o -name libtsan.a -o -name libubsan.a \
 		    -o -name liblsan.a -o -name libcilkrts.a \
 		    -o -name libmpx.a -o -name libmpxwrappers.a \
-		    -o -name libcc1.a -o -name libstdc++_nonshared.a \
+		    -o -name libcc1.a \
+%if 0%{?rhel} <= 7
+		    -o -name libstdc++_nonshared.a \
+%endif
 		    -o -name libsupc++.a \
 		    -o -name libstdc++.a -o -name libcaf_single.a \
 		    -o -name libstdc++fs.a \) -a -type f`; do
@@ -1587,7 +1786,9 @@ chmod 755 %{buildroot}%{_prefix}/%{_lib}/libitm.so.1.*
 mkdir -p %{buildroot}%{_root_prefix}/%{_lib}/
 mv %{buildroot}%{_prefix}/%{_lib}/libitm.so.1* %{buildroot}%{_root_prefix}/%{_lib}/
 mkdir -p %{buildroot}%{_root_infodir}
+%if 0%{?rhel} <= 7
 mv %{buildroot}%{_infodir}/libitm.info* %{buildroot}%{_root_infodir}/
+%endif
 %endif
 %endif
 %if %{build_libatomic}
@@ -1660,6 +1861,19 @@ for h in `find $FULLPATH/include -name \*.h`; do
   fi
 done
 
+%if 0%{?rhel} > 7
+mkdir -p %{buildroot}%{_root_prefix}/%{_lib}
+mv %{buildroot}%{_prefix}/%{_lib}/libstdc++.so.6 %{buildroot}%{_root_prefix}/%{_lib}
+mv %{buildroot}%{_prefix}/%{_lib}/libstdc++.so.6.*[0-9] %{buildroot}%{_root_prefix}/%{_lib}
+mv %{buildroot}%{_prefix}/%{_lib}/libgomp.so.1* %{buildroot}%{_root_prefix}/%{_lib}
+%if %{build_fortran}
+mv %{buildroot}%{_prefix}/%{_lib}/libgfortran.so.4* %{buildroot}%{_root_prefix}/%{_lib}
+%endif
+%if %{build_libquadmath}
+mv %{buildroot}%{_prefix}/%{_lib}/libquadmath.so.0* %{buildroot}%{_root_prefix}/%{_lib}
+%endif
+%endif
+
 cd ..
 
 %if 0%{!?scl:1}
@@ -1670,21 +1884,32 @@ done
 
 # Remove binaries we will not be including, so that they don't end up in
 # gcc7-debuginfo
-rm -f %{buildroot}%{_prefix}/%{_lib}/{libffi*,libiberty.a,libmudflap*,libstdc++*,libgfortran*}
-%if 0%{?scl:1}
-rm -f %{buildroot}%{_prefix}/%{_lib}/{libquadmath*,libitm*,libatomic*,libasan*,libtsan*,libubsan*,liblsan*}
+%if 0%{?rhel} > 7
+rm -f %{buildroot}%{_prefix}/%{_lib}/{libffi*,libiberty.a,libmudflap*}
 %else
-%if 0%{rhel} >= 7
+rm -f %{buildroot}%{_prefix}/%{_lib}/{libffi*,libiberty.a,libmudflap*,libstdc++*,libgfortran*}
+%endif
+%if 0%{?scl:1}
+%if 0%{?rhel} <= 7
+rm -f %{buildroot}%{_prefix}/%{_lib}/{libquadmath*,libitm*,libatomic*,libasan*,libtsan*,libubsan*,liblsan*}
+%endif
+%else
+%if 0%{?rhel} >= 7
 rm -f %{buildroot}%{_prefix}/%{_lib}/{libitm*,libatomic*}
 %endif
 %endif
+%if 0%{?rhel} <= 7
 rm -f %{buildroot}%{_prefix}/%{_lib}/libgomp*
+rm -f %{buildroot}/%{_lib}/libgcc_s*
+%endif
 rm -f $FULLEPATH/install-tools/{mkheaders,fixincl}
 rm -f %{buildroot}%{_prefix}/lib/{32,64}/libiberty.a
 rm -f %{buildroot}%{_prefix}/%{_lib}/libssp*
 rm -f %{buildroot}%{_prefix}/%{_lib}/libvtv* || :
 rm -f %{buildroot}/lib/cpp
+%if 0%{?rhel} <= 7
 rm -f %{buildroot}/%{_lib}/libgcc_s*
+%endif
 rm -f %{buildroot}%{_prefix}/bin/{f95,gccbug,gnatgcc*}
 rm -f %{buildroot}%{_prefix}/bin/%{gcc_target_platform}-gfortran
 %if 0%{!?scl:1}
@@ -1726,7 +1951,7 @@ echo gcc-%{version}-%{release}.%{arch} > $FULLPATH/rpmver
 cd obj-%{gcc_target_platform}
 
 %{?scl:PATH=%{_bindir}${PATH:+:${PATH}}}
-
+%if 0%{?rhel} <= 7
 # Test against the system libstdc++.so.6 + libstdc++_nonshared.a combo
 mv %{gcc_target_platform}/libstdc++-v3/src/.libs/libstdc++.so.6{,.not_here}
 mv %{gcc_target_platform}/libstdc++-v3/src/.libs/libstdc++.so{,.not_here}
@@ -1740,6 +1965,7 @@ INPUT ( %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/%{_lib}/libstdc++.so.6 -lstdc
   > %{gcc_target_platform}/libstdc++-v3/src/.libs/libstdc++.so
 cp -a %{gcc_target_platform}/libstdc++-v3/src/.libs/libstdc++_nonshared%{nonsharedver}.a \
   %{gcc_target_platform}/libstdc++-v3/src/.libs/libstdc++_nonshared.a
+%endif
 
 # run the tests.
 make %{?_smp_mflags} -k check RUNTESTFLAGS="--target_board=unix/'{,-fstack-protector}'" || :
@@ -1773,6 +1999,20 @@ rm -rf testlogs-%{_target_platform}-%{version}-%{release}
 %clean
 rm -rf %{buildroot}
 
+%if 0%{?rhel} > 7
+%post
+if [ -f %{_infodir}/gcc.info.gz ]; then 
+  /sbin/install-info \
+    --info-dir=%{_infodir} %{_infodir}/gcc.info.gz || : 
+fi
+
+%preun
+if [ $1 = 0 -a -f %{_infodir}/gcc.info.gz ]; then 
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/gcc.info.gz || : 
+fi
+%endif
+
 %if 0%{?scl:1}
 %post gfortran
 if [ -f %{_infodir}/gfortran.info.gz ]; then
@@ -1785,6 +2025,33 @@ if [ $1 = 0 -a -f %{_infodir}/gfortran.info.gz ]; then
   /sbin/install-info --delete \
     --info-dir=%{_infodir} %{_infodir}/gfortran.info.gz || :
 fi
+
+# Because glibc Prereq's libgcc and /sbin/ldconfig
+# comes from glibc, it might not exist yet when
+# libgcc is installed
+%post -n libgcc -p <lua>
+if posix.access ("/sbin/ldconfig", "x") then
+  local pid = posix.fork ()
+  if pid == 0 then
+    posix.exec ("/sbin/ldconfig")
+  elseif pid ~= -1 then
+    posix.wait (pid)
+  end
+end
+
+%postun -n libgcc -p <lua>
+if posix.access ("/sbin/ldconfig", "x") then
+  local pid = posix.fork ()
+  if pid == 0 then
+    posix.exec ("/sbin/ldconfig")
+  elseif pid ~= -1 then
+    posix.wait (pid)
+  end
+end
+
+%post -n libstdc++ -p /sbin/ldconfig
+
+%postun -n libstdc++ -p /sbin/ldconfig
 %endif
 
 %post gdb-plugin -p /sbin/ldconfig
@@ -1807,24 +2074,58 @@ if [ $1 = 0 -a -f %{_infodir}/libgccjit.info.gz ]; then
     --info-dir=%{_infodir} %{_infodir}/libgccjit.info.gz || :
 fi
 
-%post -n %{?scl_prefix}libquadmath
+%post -n libgomp
+/sbin/ldconfig
+if [ -f %{_infodir}/libgomp.info.gz ]; then
+  /sbin/install-info \
+    --info-dir=%{_infodir} %{_infodir}/libgomp.info.gz || :
+fi
+
+%preun -n libgomp
+if [ $1 = 0 -a -f %{_infodir}/libgomp.info.gz ]; then
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/libgomp.info.gz || :
+fi
+
+%postun -n libgomp -p /sbin/ldconfig
+
+%post -n libquadmath
 /sbin/ldconfig
 if [ -f %{_infodir}/libquadmath.info.gz ]; then
   /sbin/install-info \
     --info-dir=%{_infodir} %{_infodir}/libquadmath.info.gz || :
 fi
 
-%preun -n %{?scl_prefix}libquadmath
+%preun -n libquadmath
 if [ $1 = 0 -a -f %{_infodir}/libquadmath.info.gz ]; then
   /sbin/install-info --delete \
     --info-dir=%{_infodir} %{_infodir}/libquadmath.info.gz || :
 fi
 
-%postun -n %{?scl_prefix}libquadmath -p /sbin/ldconfig
+%postun -n libquadmath -p /sbin/ldconfig
+
+%post -n libitm
+/sbin/ldconfig
+if [ -f %{_infodir}/libitm.info.gz ]; then 
+  /sbin/install-info \
+    --info-dir=%{_infodir} %{_infodir}/libitm.info.gz || : 
+fi
+
+%preun -n libitm
+if [ $1 = 0 -a -f %{_infodir}/libitm.info.gz ]; then 
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/libitm.info.gz || : 
+fi
+
+%postun -n libitm -p /sbin/ldconfig
 
 %post -n libatomic -p /sbin/ldconfig
 
 %postun -n libatomic -p /sbin/ldconfig
+
+%post -n libasan -p /sbin/ldconfig
+
+%postun -n libasan -p /sbin/ldconfig
 
 %post -n libasan4 -p /sbin/ldconfig
 
@@ -2025,14 +2326,17 @@ fi
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/liblto_plugin.so*
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/collect2
 %if 0%{?scl:1}
+%if 0%{?rhel} <= 7
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/ar
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/as
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/ld
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/ld.bfd
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/ld.gold
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/nm
+%{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/objcopy
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/ranlib
 %{_prefix}/libexec/gcc/%{gcc_target_platform}/%{gcc_major}/strip
+%endif
 %endif
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/crt*.o
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libgcc.a
@@ -2182,6 +2486,14 @@ fi
 %endif
 %doc gcc/README* rpm.doc/changelogs/gcc/ChangeLog* gcc/COPYING* COPYING.RUNTIME
 
+%if 0%{?rhel} > 7
+%files -n libgcc
+%defattr(-,root,root,-)
+/%{_lib}/libgcc_s-%{gcc_major}-%{DATE}.so.1
+/%{_lib}/libgcc_s.so.1
+%doc gcc/COPYING* COPYING.RUNTIME
+%endif
+
 %files c++
 %defattr(-,root,root,-)
 %{_prefix}/bin/%{gcc_target_platform}-g++%{!?scl:5}
@@ -2211,7 +2523,9 @@ fi
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/32/libstdc++.so
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/32/libstdc++.a
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/32/libstdc++fs.a
+%if 0%{?rhel} <= 7
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/32/libstdc++_nonshared.a
+%endif
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/32/libsupc++.a
 %endif
 %ifarch sparcv9 ppc %{multilib_64_archs}
@@ -2221,7 +2535,9 @@ fi
 %ifarch sparcv9 sparc64 ppc ppc64
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libstdc++.a
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libstdc++fs.a
+%if 0%{?rhel} <= 7
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libstdc++_nonshared.a
+%endif
 %endif
 %doc rpm.doc/changelogs/gcc/cp/ChangeLog*
 
@@ -2236,24 +2552,63 @@ fi
 %dir %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib32
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib32/libstdc++.a
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib32/libstdc++fs.a
+%if 0%{?rhel} <= 7
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib32/libstdc++_nonshared.a
+%endif
 %endif
 %ifarch sparc64 ppc64
 %dir %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib64
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib64/libstdc++.a
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib64/libstdc++fs.a
+%if 0%{?rhel} <= 7
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/lib64/libstdc++_nonshared.a
+%endif
 %endif
 %ifnarch sparcv9 sparc64 ppc ppc64
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libstdc++.a
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libstdc++fs.a
+%if 0%{?rhel} <= 7
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libstdc++_nonshared.a
+%endif
 %endif
 %ifnarch sparcv9 ppc %{multilib_64_archs}
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libstdc++.so
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/libsupc++.a
 %endif
 %doc rpm.doc/changelogs/libstdc++-v3/ChangeLog* libstdc++-v3/README*
+
+%if 0%{?rhel} > 7
+%files -n libstdc++
+%defattr(-,root,root,-)
+%{_root_prefix}/%{_lib}/libstdc++.so.6*
+%dir %{_datadir}/gdb
+%dir %{_datadir}/gdb/auto-load
+%dir %{_datadir}/gdb/auto-load/%{_prefix}
+%dir %{_datadir}/gdb/auto-load/%{_prefix}/%{_lib}/
+%{_datadir}/gdb/auto-load/%{_prefix}/%{_lib}/libstdc*gdb.py*
+%dir %{_prefix}/share/gcc-%{gcc_major}
+%dir %{_prefix}/share/gcc-%{gcc_major}/python
+%{_prefix}/share/gcc-%{gcc_major}/python/libstdcxx
+
+%files -n libgomp
+%defattr(-,root,root,-)
+%{_root_prefix}/%{_lib}/libgomp.so.1*
+%{_infodir}/libgomp.info*
+%doc rpm.doc/changelogs/libgomp/ChangeLog*
+
+%if %{build_libatomic}
+%files -n libatomic
+%defattr(-,root,root,-)
+%{_root_prefix}/%{_lib}/libatomic.so.1*
+%endif
+
+%if %{build_libitm}
+%files -n libitm
+%defattr(-,root,root,-)
+%{_root_prefix}/%{_lib}/libitm.so.1*
+%{_infodir}/libitm.info*
+%endif
+%endif
 
 %if %{build_libstdcxx_docs}
 %files -n %{?scl_prefix}libstdc++%{!?scl:5}-docs
@@ -2308,13 +2663,19 @@ fi
 %{_prefix}/lib/gcc/%{gcc_target_platform}/%{gcc_major}/32/finclude
 %endif
 %doc rpm.doc/gfortran/*
+
+%if 0%{?rhel} > 7
+%files -n libgfortran
+%defattr(-,root,root,-)
+%{_root_prefix}/%{_lib}/libgfortran.so.4*
+%endif
 %endif
 
 %if %{build_libquadmath}
-%if 0%{!?scl:1}
-%files -n %{?scl_prefix}libquadmath
+%if 0%{?rhel} > 7
+%files -n libquadmath
 %defattr(-,root,root,-)
-%{_prefix}/%{_lib}/libquadmath.so.0*
+%{_root_prefix}/%{_lib}/libquadmath.so.0*
 %{_infodir}/libquadmath.info*
 %doc rpm.doc/libquadmath/COPYING*
 %endif
@@ -2385,7 +2746,11 @@ fi
 %endif
 
 %if %{build_libasan}
+%if 0%{?rhel} > 7
+%files -n libasan
+%else
 %files -n libasan4
+%endif
 %defattr(-,root,root,-)
 %{?scl:%{_root_prefix}}%{!?scl:%{_prefix}}/%{_lib}/libasan.so.4*
 
@@ -2536,5 +2901,83 @@ fi
 %doc rpm.doc/changelogs/libcc1/ChangeLog*
 
 %changelog
-* Thu Jun  1 2017 Jakub Jelinek <jakub@redhat.com> 7.1.1-2
+* Tue Jun 12 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5.10
+- bump for rebuild
+
+* Tue Jun 05 2018 Jeff Law <polacek@redhat.com> 7.3.1-5.9
+- Fix INCLUDE handling when pathname is on a separate line
+- Integrate updates to patches #0005 and #0014.  Add testcases for
+- various legacy fortran extensions (#1586289)
+
+
+* Sat May 19 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5.8
+- bump for rebuild
+
+* Wed May  9 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5.7
+- fix 0014-Allow-non-logical-expressions-in-IF-statements.patch: also allow
+  non logical expressions in ELSE-IF statements
+
+* Mon Apr 23 2018 Jeff Law <law@redhat.com> 7.3.1-5.6
+- Fix handling of -fdlines-as-comments when -fdec is enabled
+  (#1570967)
+
+* Tue Apr 17 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5.5
+- fix a goof in 0013-Allow-per-variable-kind-specification.patch
+
+* Thu Mar 29 2018 Jeff Law <law@redhat.com> 7.3.1-5.4
+- Add Jakub's patch to generalize default exponent handling to
+  instead cover all DEC runtime extensions
+  Update 0022 patch for changes from Jakub's work.
+  (#1561204)
+
+* Tue Mar 27 2018 Jeff Law <law@redhat.com> 7.3.1-5.3
+- Various minor fixes to the gfortran patches from Codethink.
+  (#1561204)
+
+* Mon Mar 12 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5.2
+- only require DTS binutils for RHEL 6 and 7
+
+* Mon Mar 12 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5.1
+- apply Fortran patches
+
+* Mon Mar 12 2018 Marek Polacek <polacek@redhat.com> 7.3.1-5
+- update from Fedora gcc-7.3.1-5
+
+* Wed Feb 21 2018 Marek Polacek <polacek@redhat.com> 7.3.1-4.3
+- bump for rebuild
+
+* Fri Feb  9 2018 Marek Polacek <polacek@redhat.com> 7.3.1-4.2
+- fix some conditionals
+
+* Thu Feb  8 2018 Marek Polacek <polacek@redhat.com> 7.3.1-4.1
+- Provide liblto_plugin.so.0()(64bit) for aarch64
+
+* Mon Feb  5 2018 Marek Polacek <polacek@redhat.com> 7.3.1-4
+- update from Fedora gcc-7.3.1-4
+
+* Mon Jan 15 2018 Marek Polacek <polacek@redhat.com> 7.2.1-6.2
+- merge from another branch
+
+* Tue Jan  9 2018 Marek Polacek <polacek@redhat.com> 7.2.1-6.1
+- add objcopy symlink (#1501355)
+
+* Fri Jan  5 2018 Marek Polacek <polacek@redhat.com> 7.2.1-6
+- update from Fedora gcc-7.2.1-6
+
+* Mon Dec 18 2017 Jeff Law  <law@redhat.com> 7.2.1-2
+- Backport -fstack-clash-protection from development trunk (#1512529)
+
+* Tue Dec 12 2017 Marek Polacek <polacek@redhat.com> 7.2.1-1.1
+- fix visibility of symbols in gcc7-libstdc++-compat.patch
+
+* Thu Aug 31 2017 Marek Polacek <polacek@redhat.com> 7.2.1-1
+- update from Fedora gcc-7.2.1-1
+
+* Mon Aug 28 2017 Marek Polacek <polacek@redhat.com> 7.1.1-7.1
+- don't Provide "gcc" (#1485002)
+
+* Thu Aug  3 2017 Jakub Jelinek <jakub@redhat.com> 7.1.1-7
+- update from Fedora gcc-7.1.1-7
+
+* Tue Jun 13 2017 Jakub Jelinek <jakub@redhat.com> 7.1.1-2.1
 - new package
